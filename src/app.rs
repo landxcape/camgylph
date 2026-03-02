@@ -23,6 +23,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+const TERMINAL_CELL_ASPECT_RATIO: f32 = 0.5;
+
 struct RuntimeState {
     quit: bool,
     show_metrics: bool,
@@ -118,6 +120,7 @@ pub fn run(config: Config) -> Result<(), AppError> {
                 ramp::by_name(&state.ramp_name),
                 state.gamma,
                 state.contrast,
+                TERMINAL_CELL_ASPECT_RATIO,
             );
 
             let status_line = if state.show_metrics {

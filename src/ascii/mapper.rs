@@ -1,4 +1,6 @@
-use crate::frame::{frame::RgbFrameView, luminance::rgb_luma_u8, resize::sample_source_coords};
+use crate::frame::{
+    frame::RgbFrameView, luminance::rgb_luma_u8, resize::sample_source_coords_cover,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AsciiCell {
@@ -29,6 +31,7 @@ pub fn map_rgb_frame(
     ramp: &[u8],
     gamma: f32,
     contrast: f32,
+    cell_aspect_ratio: f32,
 ) -> AsciiFrame {
     let width = out_width.max(1);
     let height = out_height.max(1);
@@ -36,7 +39,15 @@ pub fn map_rgb_frame(
 
     for y in 0..height {
         for x in 0..width {
-            let (sx, sy) = sample_source_coords(x, y, width, height, frame.width, frame.height);
+            let (sx, sy) = sample_source_coords_cover(
+                x,
+                y,
+                width,
+                height,
+                frame.width,
+                frame.height,
+                cell_aspect_ratio,
+            );
             let (r, g, b) = frame.pixel_at(sx, sy);
             let luma = tone_adjust(rgb_luma_u8(r, g, b), gamma, contrast);
             let glyph = luma_to_glyph(luma, ramp);
@@ -84,7 +95,7 @@ mod tests {
             255, 0, 0, 0, 255, 0, //
         ];
         let frame = RgbFrameView::new(2, 2, &data).expect("valid frame");
-        let mapped = map_rgb_frame(&frame, 2, 2, b" .#", 1.0, 1.0);
+        let mapped = map_rgb_frame(&frame, 2, 2, b" .#", 1.0, 1.0, 0.5);
         assert_eq!(mapped.width, 2);
         assert_eq!(mapped.height, 2);
         assert_eq!(mapped.cells.len(), 4);

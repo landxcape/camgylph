@@ -66,6 +66,11 @@ Default run:
 cargo run -- --device "0:none"
 ```
 
+Rendering mode:
+
+- Full-terminal `cover` (fills available terminal area)
+- Aspect ratio preserved with centered crop
+
 Common options:
 
 - `--width <n>` / `--height <n>`
