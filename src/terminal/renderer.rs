@@ -63,6 +63,12 @@ impl TerminalRenderer {
             self.prev_status_row = Some(status_row);
         } else if let Some(prev_status_row) = self.prev_status_row.take() {
             write!(self.stdout, "\x1b[{};1H\x1b[K", prev_status_row)?;
+            if prev_status_row > 0 {
+                let idx = prev_status_row - 1;
+                if idx < self.prev_rows.len() {
+                    self.prev_rows[idx].clear();
+                }
+            }
         }
 
         self.stdout.flush()

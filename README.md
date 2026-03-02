@@ -2,6 +2,14 @@
 
 Real-time CLI camera renderer that converts webcam frames into colored ASCII.
 
+Current stable milestone: `v1.3.0`
+
+Scope tracking:
+
+- `docs/SCOPES.md`
+- Completed: `docs/scopes/v1.3.0-interactive-tui.md`
+- Next plan: `docs/scopes/v1.4.0-release-mode-plan.md`
+
 ## Prerequisites
 
 - Rust toolchain (`cargo`, `rustc`)
@@ -70,7 +78,8 @@ Rendering mode:
 
 - Full-terminal `cover` (fills available terminal area)
 - Aspect ratio preserved with centered crop
-- Footer shortcuts are always shown; `m` toggles metrics details in that footer
+- Footer shortcuts are shown by default; `h` toggles the footer line
+- `m` toggles metrics details inside the footer
 
 Common options:
 
@@ -91,7 +100,9 @@ Common options:
 - `q` or `Esc`: quit
 - `c`: cycle color mode
 - `r`: cycle character ramp
-- `m`: toggle metrics line
+- `m`: toggle metrics details
+- `h`: show/hide footer shortcuts line
+- `v`: toggle horizontal mirror
 - `+` / `-`: increase / decrease gamma
 - `]` / `[`: increase / decrease contrast
 
@@ -111,7 +122,7 @@ Binary path:
 1. `cargo run -- --list-devices` prints device information.
 2. `cargo run -- --device <valid-device>` renders ASCII frames.
 3. `q` exits and terminal restores cleanly.
-4. `c`, `r`, and `m` controls work during runtime.
+4. `c`, `r`, `m`, `h`, and `v` controls work during runtime.
 5. Disconnecting camera does not panic and follows restart policy.
 6. `+/-` and `[]` adjust output tone in real time.
 

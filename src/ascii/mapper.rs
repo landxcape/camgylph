@@ -32,6 +32,7 @@ pub fn map_rgb_frame(
     gamma: f32,
     contrast: f32,
     cell_aspect_ratio: f32,
+    mirror_horizontal: bool,
 ) -> AsciiFrame {
     let width = out_width.max(1);
     let height = out_height.max(1);
@@ -39,8 +40,9 @@ pub fn map_rgb_frame(
 
     for y in 0..height {
         for x in 0..width {
+            let sample_x = if mirror_horizontal { width - 1 - x } else { x };
             let (sx, sy) = sample_source_coords_cover(
-                x,
+                sample_x,
                 y,
                 width,
                 height,
@@ -95,9 +97,25 @@ mod tests {
             255, 0, 0, 0, 255, 0, //
         ];
         let frame = RgbFrameView::new(2, 2, &data).expect("valid frame");
-        let mapped = map_rgb_frame(&frame, 2, 2, b" .#", 1.0, 1.0, 0.5);
+        let mapped = map_rgb_frame(&frame, 2, 2, b" .#", 1.0, 1.0, 0.5, false);
         assert_eq!(mapped.width, 2);
         assert_eq!(mapped.height, 2);
         assert_eq!(mapped.cells.len(), 4);
+    }
+
+    #[test]
+    fn mirrors_frame_horizontally_when_enabled() {
+        let data = vec![
+            0, 0, 0, //
+            255, 255, 255,
+        ];
+        let frame = RgbFrameView::new(2, 1, &data).expect("valid frame");
+        let normal = map_rgb_frame(&frame, 2, 1, b" .#", 1.0, 1.0, 1.0, false);
+        let mirrored = map_rgb_frame(&frame, 2, 1, b" .#", 1.0, 1.0, 1.0, true);
+
+        assert_eq!(normal.cells[0].glyph, b' ');
+        assert_eq!(normal.cells[1].glyph, b'#');
+        assert_eq!(mirrored.cells[0].glyph, b'#');
+        assert_eq!(mirrored.cells[1].glyph, b' ');
     }
 }

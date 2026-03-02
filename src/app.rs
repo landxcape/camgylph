@@ -28,10 +28,12 @@ const TERMINAL_CELL_ASPECT_RATIO: f32 = 0.5;
 struct RuntimeState {
     quit: bool,
     show_metrics: bool,
+    show_shortcuts: bool,
     color_mode: ColorMode,
     ramp_name: String,
     gamma: f32,
     contrast: f32,
+    mirror: bool,
 }
 
 impl RuntimeState {
@@ -39,10 +41,12 @@ impl RuntimeState {
         Self {
             quit: false,
             show_metrics: config.show_metrics,
+            show_shortcuts: true,
             color_mode: config.color_mode,
             ramp_name: config.ramp_name.clone(),
             gamma: config.gamma,
             contrast: config.contrast,
+            mirror: false,
         }
     }
 }
@@ -121,10 +125,12 @@ pub fn run(config: Config) -> Result<(), AppError> {
                 state.gamma,
                 state.contrast,
                 TERMINAL_CELL_ASPECT_RATIO,
+                state.mirror,
             );
 
             let status_line = build_status_line(&state, &metrics, base_index + session_idx);
-            renderer.render(&mapped, state.color_mode, Some(&status_line))?;
+            let status_line = state.show_shortcuts.then_some(status_line.as_str());
+            renderer.render(&mapped, state.color_mode, status_line)?;
 
             metrics.end_frame(started_at, base_index + session_idx + 1);
             maybe_log_metrics(config.log_metrics_ms, &metrics, &mut last_metrics_log);
@@ -167,6 +173,8 @@ fn apply_control(state: &mut RuntimeState, control: Control) {
         Control::ToggleColorMode => state.color_mode = state.color_mode.next(),
         Control::ToggleRamp => state.ramp_name = ramp::next_name(&state.ramp_name).to_string(),
         Control::ToggleMetrics => state.show_metrics = !state.show_metrics,
+        Control::ToggleShortcuts => state.show_shortcuts = !state.show_shortcuts,
+        Control::ToggleMirror => state.mirror = !state.mirror,
         Control::IncreaseGamma => state.gamma = (state.gamma + 0.1).clamp(0.2, 3.0),
         Control::DecreaseGamma => state.gamma = (state.gamma - 0.1).clamp(0.2, 3.0),
         Control::IncreaseContrast => state.contrast = (state.contrast + 0.1).clamp(0.2, 3.0),
@@ -176,11 +184,13 @@ fn apply_control(state: &mut RuntimeState, control: Control) {
 
 fn build_status_line(state: &RuntimeState, metrics: &Metrics, frame_idx: u64) -> String {
     let shortcuts = format!(
-        "q:quit c:color({}) r:ramp({}) +/-:gamma({:.1}) []:contrast({:.1}) m:metrics",
+        "q:quit c:color({}) r:ramp({}) +/-:gamma({:.1}) []:contrast({:.1}) v:mirror({}) m:metrics({}) h:shortcuts",
         mode_label(state.color_mode),
         state.ramp_name,
         state.gamma,
         state.contrast,
+        if state.mirror { "on" } else { "off" },
+        if state.show_metrics { "on" } else { "off" },
     );
 
     if !state.show_metrics {

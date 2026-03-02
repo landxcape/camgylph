@@ -195,7 +195,9 @@ pub fn print_help() {
   q / Esc                  Quit\n\
   c                        Cycle color mode\n\
   r                        Cycle character ramp\n\
-  m                        Toggle metrics\n\
+  m                        Toggle metrics details in the footer\n\
+  h                        Show / hide footer shortcuts line\n\
+  v                        Toggle horizontal mirror\n\
   + / -                    Increase / decrease gamma\n\
   ] / [                    Increase / decrease contrast"
     );
