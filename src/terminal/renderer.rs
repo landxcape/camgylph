@@ -56,7 +56,8 @@ impl TerminalRenderer {
         }
 
         if let Some(status_line) = status_line {
-            let status_row = frame.height as usize + 1;
+            // Overlay footer on the last visible row to keep the frame full-height.
+            let status_row = frame.height as usize;
             let clamped = clamp_to_columns(status_line, term_w as usize);
             write!(self.stdout, "\x1b[{};1H{}\x1b[K", status_row, clamped)?;
             self.prev_status_row = Some(status_row);

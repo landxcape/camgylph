@@ -70,6 +70,7 @@ Rendering mode:
 
 - Full-terminal `cover` (fills available terminal area)
 - Aspect ratio preserved with centered crop
+- Footer shortcuts are always shown; `m` toggles metrics details in that footer
 
 Common options:
 
