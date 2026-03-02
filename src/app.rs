@@ -74,6 +74,13 @@ pub fn run(config: Config) -> Result<(), AppError> {
 
     preflight_source_check(&capture_config)?;
 
+    let effective_render_fps = if config.render_fps == 0 {
+        capture_config.fps
+    } else {
+        config.render_fps
+    };
+    emit_startup_profile(&config, &capture_config, effective_render_fps);
+
     let _screen = TerminalScreen::enter()?;
     let mut renderer = TerminalRenderer::new();
     let mut metrics = Metrics::new();
@@ -83,11 +90,6 @@ pub fn run(config: Config) -> Result<(), AppError> {
     let mut total_frames = 0u64;
     let mut last_render_at: Option<Instant> = None;
     let mut last_metrics_log = Instant::now();
-    let effective_render_fps = if config.render_fps == 0 {
-        capture_config.fps
-    } else {
-        config.render_fps
-    };
 
     loop {
         let base_index = total_frames;
@@ -243,4 +245,34 @@ fn maybe_log_metrics(interval_ms: u64, metrics: &Metrics, last_logged: &mut Inst
         snap.total_frames, snap.fps, snap.frame_time_ms
     );
     *last_logged = Instant::now();
+}
+
+fn emit_startup_profile(config: &Config, capture: &CaptureConfig<'_>, render_fps: u32) {
+    if !config.release_mode {
+        return;
+    }
+
+    let max_cols = if config.max_cols == 0 {
+        "full".to_string()
+    } else {
+        config.max_cols.to_string()
+    };
+    let max_rows = if config.max_rows == 0 {
+        "full".to_string()
+    } else {
+        config.max_rows.to_string()
+    };
+
+    eprintln!(
+        "profile mode=release capture={}x{}@{} render_fps={} color={} ramp={} metrics={} bounds={}x{}",
+        capture.width,
+        capture.height,
+        capture.fps,
+        render_fps,
+        mode_label(config.color_mode),
+        config.ramp_name,
+        if config.show_metrics { "on" } else { "off" },
+        max_cols,
+        max_rows
+    );
 }

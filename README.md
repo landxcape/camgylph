@@ -2,7 +2,7 @@
 
 Real-time CLI camera renderer that converts webcam frames into colored ASCII.
 
-Current stable release: `v1.3.2`
+Current stable release: `v1.4.0`
 
 ## Install
 
@@ -62,6 +62,7 @@ camgylph --device "Integrated Camera"
 - `--log-metrics-ms <n>`
 - `--max-cols <n>` / `--max-rows <n>`
 - `--fast` (performance preset)
+- `--release-mode` (production preset: ansi256, 60 FPS cap, no metrics, full terminal)
 - `--max-failures <n>` / `--backoff-ms <n>`
 
 ## Rendering Behavior
@@ -71,6 +72,34 @@ camgylph --device "Integrated Camera"
 - Footer shortcuts line shown by default (`h` toggles visibility)
 - Metrics can be shown/hidden inside footer (`m`)
 
+## Release Mode
+
+Use release mode when you want smooth terminal rendering defaults:
+
+```bash
+camgylph --device "0:none" --release-mode
+```
+
+Release-mode preset values:
+
+- `color_mode=ansi256`
+- `ramp=standard`
+- `show_metrics=false`
+- `render_fps=60`
+- `max_cols=0`, `max_rows=0` (full terminal)
+
+Preset precedence:
+
+- Explicit flags override the preset, regardless of argument order.
+- Example: both of these are equivalent:
+
+```bash
+camgylph --release-mode --truecolor --render-fps 48
+camgylph --truecolor --render-fps 48 --release-mode
+```
+
+When release mode is enabled, startup prints a single stderr profile line showing effective mode, color, ramp, FPS cap, and bounds.
+
 ## Smoke Test Checklist
 
 1. `camgylph --list-devices` prints device information.
@@ -79,6 +108,17 @@ camgylph --device "Integrated Camera"
 4. `c`, `r`, `m`, `h`, and `v` controls work during runtime.
 5. Disconnecting camera does not panic and follows restart policy.
 6. `+/-` and `[]` adjust output tone in real time.
+
+## Benchmark Checklist
+
+1. Run baseline:
+   `camgylph --device <valid-device>`
+2. Run release mode:
+   `camgylph --device <valid-device> --release-mode`
+3. Optional cap comparison:
+   `camgylph --device <valid-device> --release-mode --render-fps 30`
+4. Compare smoothness and terminal responsiveness while toggling:
+   `c`, `r`, `m`, `h`, `v`
 
 ## Build From Source (Contributor Mode)
 
@@ -108,8 +148,10 @@ target/release/camgylph --device "0:none"
 ## Scope Tracking
 
 - `docs/SCOPES.md`
-- Completed: `docs/scopes/v1.3.0-interactive-tui.md`
-- Next plan: `docs/scopes/v1.4.0-release-mode-plan.md`
+- Completed:
+  - `docs/scopes/v1.3.0-interactive-tui.md`
+  - `docs/scopes/v1.4.0-release-mode.md`
+- Next plan: `docs/scopes/v1.5.0-distribution-automation-plan.md`
 
 ## License
 
