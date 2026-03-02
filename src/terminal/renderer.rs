@@ -10,6 +10,7 @@ pub struct TerminalRenderer {
     prev_rows: Vec<String>,
     prev_width: u16,
     prev_height: u16,
+    prev_status_row: Option<usize>,
 }
 
 impl TerminalRenderer {
@@ -19,6 +20,7 @@ impl TerminalRenderer {
             prev_rows: Vec::new(),
             prev_width: 0,
             prev_height: 0,
+            prev_status_row: None,
         }
     }
 
@@ -30,7 +32,7 @@ impl TerminalRenderer {
         &mut self,
         frame: &AsciiFrame,
         color_mode: ColorMode,
-        status_line: &str,
+        status_line: Option<&str>,
     ) -> io::Result<()> {
         let rows = build_rows(frame, color_mode);
         let (term_w, _) = terminal::size()?;
@@ -53,9 +55,15 @@ impl TerminalRenderer {
             }
         }
 
-        let status_row = frame.height as usize + 1;
-        let clamped = clamp_to_columns(status_line, term_w as usize);
-        write!(self.stdout, "\x1b[{};1H{}\x1b[K", status_row, clamped)?;
+        if let Some(status_line) = status_line {
+            let status_row = frame.height as usize + 1;
+            let clamped = clamp_to_columns(status_line, term_w as usize);
+            write!(self.stdout, "\x1b[{};1H{}\x1b[K", status_row, clamped)?;
+            self.prev_status_row = Some(status_row);
+        } else if let Some(prev_status_row) = self.prev_status_row.take() {
+            write!(self.stdout, "\x1b[{};1H\x1b[K", prev_status_row)?;
+        }
+
         self.stdout.flush()
     }
 

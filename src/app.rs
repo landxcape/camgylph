@@ -10,7 +10,7 @@ use crate::{
     },
     config::Config,
     error::AppError,
-    frame::{frame::RgbFrameView, resize::fit_dimensions},
+    frame::frame::RgbFrameView,
     metrics::Metrics,
     terminal::{
         input::{Control, poll_controls},
@@ -110,13 +110,7 @@ pub fn run(config: Config) -> Result<(), AppError> {
             if config.max_rows > 0 {
                 term_h = term_h.min(config.max_rows);
             }
-            let (out_w, out_h) = fit_dimensions(
-                frame.width,
-                frame.height,
-                term_w,
-                term_h,
-                config.cell_aspect_ratio,
-            );
+            let (out_w, out_h) = compute_render_dimensions(term_w, term_h, state.show_metrics);
             let mapped = map_rgb_frame(
                 &frame,
                 out_w,
@@ -126,8 +120,16 @@ pub fn run(config: Config) -> Result<(), AppError> {
                 state.contrast,
             );
 
-            let status_line = build_status_line(&state, &metrics, base_index + session_idx);
-            renderer.render(&mapped, state.color_mode, &status_line)?;
+            let status_line = if state.show_metrics {
+                Some(build_status_line(
+                    &state,
+                    &metrics,
+                    base_index + session_idx,
+                ))
+            } else {
+                None
+            };
+            renderer.render(&mapped, state.color_mode, status_line.as_deref())?;
 
             metrics.end_frame(started_at, base_index + session_idx + 1);
             maybe_log_metrics(config.log_metrics_ms, &metrics, &mut last_metrics_log);
@@ -178,16 +180,6 @@ fn apply_control(state: &mut RuntimeState, control: Control) {
 }
 
 fn build_status_line(state: &RuntimeState, metrics: &Metrics, frame_idx: u64) -> String {
-    if !state.show_metrics {
-        return format!(
-            "q:quit c:color({}) r:ramp({}) +/-:gamma({:.1}) []:contrast({:.1}) m:metrics",
-            mode_label(state.color_mode),
-            state.ramp_name,
-            state.gamma,
-            state.contrast,
-        );
-    }
-
     let snap = metrics.snapshot();
     format!(
         "frame:{} total:{} fps:{:.1} frame_ms:{:.2} color:{} ramp:{} gamma:{:.1} contrast:{:.1} | q:quit c:color r:ramp +/-:gamma []:contrast m:metrics",
@@ -200,6 +192,15 @@ fn build_status_line(state: &RuntimeState, metrics: &Metrics, frame_idx: u64) ->
         state.gamma,
         state.contrast,
     )
+}
+
+fn compute_render_dimensions(term_w: u16, term_h: u16, show_metrics: bool) -> (u16, u16) {
+    let out_w = term_w.max(1);
+    let mut out_h = term_h.max(1);
+    if show_metrics {
+        out_h = out_h.saturating_sub(1).max(1);
+    }
+    (out_w, out_h)
 }
 
 fn should_render_now(render_fps: u32, last_render_at: &mut Option<Instant>) -> bool {

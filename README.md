@@ -79,7 +79,6 @@ Common options:
 - `--max-cols <n>` / `--max-rows <n>`
 - `--fast` (performance preset)
 - `--max-failures <n>` / `--backoff-ms <n>`
-- `--cell-aspect <ratio>`
 
 ## Controls
 

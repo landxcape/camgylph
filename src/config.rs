@@ -18,7 +18,6 @@ pub struct Config {
     pub max_rows: u16,
     pub max_consecutive_failures: u32,
     pub backoff_base_ms: u64,
-    pub cell_aspect_ratio: f32,
     pub show_help: bool,
 }
 
@@ -31,18 +30,17 @@ impl Default for Config {
             pix_fmt: "rgb24".to_string(),
             device: std::env::var("CAMGLYPH_DEVICE").ok(),
             list_devices: false,
-            color_mode: ColorMode::Truecolor,
+            color_mode: ColorMode::Ansi256,
             ramp_name: "standard".to_string(),
-            show_metrics: true,
+            show_metrics: false,
             gamma: 1.0,
             contrast: 1.0,
-            render_fps: 0,
+            render_fps: 30,
             log_metrics_ms: 0,
             max_cols: 0,
             max_rows: 0,
             max_consecutive_failures: 5,
             backoff_base_ms: 500,
-            cell_aspect_ratio: 0.5,
             show_help: false,
         }
     }
@@ -96,10 +94,6 @@ impl Config {
                     cfg.backoff_base_ms =
                         parse_u64(next_value(&mut args, "--backoff-ms")?, "--backoff-ms")?
                 }
-                "--cell-aspect" => {
-                    cfg.cell_aspect_ratio =
-                        parse_f32(next_value(&mut args, "--cell-aspect")?, "--cell-aspect")?
-                }
                 "--no-color" => cfg.color_mode = ColorMode::None,
                 "--ansi256" => cfg.color_mode = ColorMode::Ansi256,
                 "--truecolor" => cfg.color_mode = ColorMode::Truecolor,
@@ -133,8 +127,6 @@ impl Config {
                             parse_u32(value.to_string(), "--max-failures")?;
                     } else if let Some(value) = arg.strip_prefix("--backoff-ms=") {
                         cfg.backoff_base_ms = parse_u64(value.to_string(), "--backoff-ms")?;
-                    } else if let Some(value) = arg.strip_prefix("--cell-aspect=") {
-                        cfg.cell_aspect_ratio = parse_f32(value.to_string(), "--cell-aspect")?;
                     } else {
                         return Err(AppError::Config(format!(
                             "Unknown argument: {arg}. Use --help for usage."
@@ -153,12 +145,6 @@ impl Config {
         if cfg.fps == 0 {
             return Err(AppError::Config(
                 "FPS must be greater than zero.".to_string(),
-            ));
-        }
-
-        if cfg.cell_aspect_ratio <= 0.0 {
-            return Err(AppError::Config(
-                "--cell-aspect must be a positive number (for example, 0.5).".to_string(),
             ));
         }
 
@@ -192,19 +178,18 @@ pub fn print_help() {
   --ramp <name>            Ramp preset: standard | detailed\n\
   --no-color               Disable color output\n\
   --ansi256                Use ANSI 256-color mode\n\
-  --truecolor              Use ANSI truecolor mode (default)\n\
-  --show-metrics           Show metrics/status line\n\
+  --truecolor              Use ANSI truecolor mode\n\
+  --show-metrics           Show metrics/status line (default: off)\n\
   --hide-metrics           Hide metrics/status line\n\
   --fast                   Performance preset (ansi256, 20 FPS, no metrics, 120x40 render cap)\n\
   --gamma <value>          Gamma adjustment (default: 1.0)\n\
   --contrast <value>       Contrast multiplier (default: 1.0)\n\
-  --render-fps <n>         Max render FPS cap; 0 = follow camera FPS (default: 0)\n\
+  --render-fps <n>         Max render FPS cap; 0 = follow camera FPS (default: 30)\n\
   --log-metrics-ms <n>     Periodic metrics logging to stderr (default: 0)\n\
   --max-cols <n>           Render width cap in terminal cells (default: 0 = terminal width)\n\
   --max-rows <n>           Render height cap in terminal cells (default: 0 = terminal height)\n\
   --max-failures <n>       Restart failure threshold (default: 5)\n\
   --backoff-ms <n>         Restart backoff base in ms (default: 500)\n\
-  --cell-aspect <ratio>    Character cell aspect ratio (default: 0.5)\n\
   -h, --help               Show this help\n\
 \nCONTROLS (while running):\n\
   q / Esc                  Quit\n\
