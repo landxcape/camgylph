@@ -2,110 +2,55 @@
 
 Real-time CLI camera renderer that converts webcam frames into colored ASCII.
 
-Current stable milestone: `v1.3.0`
+Current stable release: `v1.3.1`
 
-Scope tracking:
+## Install
 
-- `docs/SCOPES.md`
-- Completed: `docs/scopes/v1.3.0-interactive-tui.md`
-- Next plan: `docs/scopes/v1.4.0-release-mode-plan.md`
-
-## Prerequisites
-
-- Rust toolchain (`cargo`, `rustc`)
-- `ffmpeg` available in `PATH`
-
-## Platform setup
-
-### macOS
-
-1. Install dependencies:
+### Homebrew (recommended)
 
 ```bash
-brew install ffmpeg rust
+brew tap landxcape/tap
+brew install landxcape/tap/camgylph
 ```
 
-2. Grant camera permission to your terminal app in:
-`System Settings -> Privacy & Security -> Camera`
+## Quick Start
 
-3. Build release binary:
+1. List camera devices:
 
 ```bash
-cargo build --release
+camgylph --list-devices
 ```
 
-4. List devices:
+2. Run camera renderer:
 
 ```bash
-target/release/camgylph --list-devices
+camgylph --device "0:none"
 ```
 
-### Linux
+On macOS, grant camera permission to your terminal app in:
+`System Settings -> Privacy & Security -> Camera`.
 
-1. Install dependencies (example for Debian/Ubuntu):
+## Typical Commands
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y ffmpeg build-essential pkg-config libudev-dev
+camgylph --list-devices
+camgylph --device "0:none"
+camgylph --device /dev/video0
+camgylph --device "Integrated Camera"
 ```
 
-2. Ensure your user can read camera device (usually `/dev/video0`).
+## Controls (while running)
 
-3. Build release binary:
+- `q` or `Esc`: quit
+- `c`: cycle color mode
+- `r`: cycle character ramp
+- `m`: toggle metrics details
+- `h`: show/hide footer shortcuts line
+- `v`: toggle horizontal mirror
+- `+` / `-`: increase / decrease gamma
+- `]` / `[`: increase / decrease contrast
 
-```bash
-cargo build --release
-```
-
-4. Optional device format listing:
-
-```bash
-target/release/camgylph --list-devices --device /dev/video0
-```
-
-### Windows
-
-1. Install Rust and FFmpeg (add FFmpeg `bin` to `PATH`).
-2. Build release binary:
-
-```powershell
-cargo build --release
-```
-
-3. Use the camera name from the device list:
-
-```powershell
-target\release\camgylph.exe --list-devices
-```
-
-4. Run with explicit device:
-
-```powershell
-target\release\camgylph.exe --device "Integrated Camera"
-```
-
-## Run
-
-Default run:
-
-```bash
-target/release/camgylph --device "0:none"
-```
-
-Development run (debug build):
-
-```bash
-cargo run -- --device "0:none"
-```
-
-Rendering mode:
-
-- Full-terminal `cover` (fills available terminal area)
-- Aspect ratio preserved with centered crop
-- Footer shortcuts are shown by default; `h` toggles the footer line
-- `m` toggles metrics details inside the footer
-
-Common options:
+## Common Options
 
 - `--width <n>` / `--height <n>`
 - `--fps <n>`
@@ -119,41 +64,52 @@ Common options:
 - `--fast` (performance preset)
 - `--max-failures <n>` / `--backoff-ms <n>`
 
-## Controls
+## Rendering Behavior
 
-- `q` or `Esc`: quit
-- `c`: cycle color mode
-- `r`: cycle character ramp
-- `m`: toggle metrics details
-- `h`: show/hide footer shortcuts line
-- `v`: toggle horizontal mirror
-- `+` / `-`: increase / decrease gamma
-- `]` / `[`: increase / decrease contrast
+- Full-terminal `cover` render mode
+- Aspect ratio preserved with centered crop
+- Footer shortcuts line shown by default (`h` toggles visibility)
+- Metrics can be shown/hidden inside footer (`m`)
 
-## Release build
+## Smoke Test Checklist
 
-```bash
-cargo build --release
-```
-
-Binary path:
-
-- macOS/Linux: `target/release/camgylph`
-- Windows: `target\release\camgylph.exe`
-
-## Smoke-test checklist
-
-1. `target/release/camgylph --list-devices` prints device information.
-2. `target/release/camgylph --device <valid-device>` renders ASCII frames.
+1. `camgylph --list-devices` prints device information.
+2. `camgylph --device <valid-device>` renders ASCII frames.
 3. `q` exits and terminal restores cleanly.
 4. `c`, `r`, `m`, `h`, and `v` controls work during runtime.
 5. Disconnecting camera does not panic and follows restart policy.
 6. `+/-` and `[]` adjust output tone in real time.
 
+## Build From Source (Contributor Mode)
+
+Prerequisites:
+
+- Rust toolchain (`cargo`, `rustc`)
+- `ffmpeg` available in `PATH`
+
+Build release binary:
+
+```bash
+cargo build --release
+```
+
+Run from build output:
+
+```bash
+target/release/camgylph --list-devices
+target/release/camgylph --device "0:none"
+```
+
 ## Known limitations
 
 - Linux device enumeration via ffmpeg is format-focused for a chosen v4l2 node, not a full camera list.
 - Renderer currently expects `rgb24` output path.
+
+## Scope Tracking
+
+- `docs/SCOPES.md`
+- Completed: `docs/scopes/v1.3.0-interactive-tui.md`
+- Next plan: `docs/scopes/v1.4.0-release-mode-plan.md`
 
 ## License
 
