@@ -2,7 +2,7 @@
 
 Real-time CLI camera renderer that converts webcam frames into colored ASCII.
 
-Current stable release: `v1.3.1`
+Current stable release: `v1.3.2`
 
 ## Install
 
