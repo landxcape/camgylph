@@ -1,113 +1,83 @@
-use std::{
-    io::Read,
-    process::{Command, Stdio},
-};
+mod camera;
+
+use std::{thread, time::Duration};
+
+use camera::ffmpeg::{maybe_list_devices_and_exit, preflight_source_check, run_capture_session, CaptureConfig};
 
 const WIDTH: u32 = 640;
 const HEIGHT: u32 = 480;
 const FPS: u32 = 30;
 const PIX_FMT: &str = "rgb24";
+const LOG_EVERY: u64 = 30;
+
+const MAX_CONSECUTIVE_FAILURES: u32 = 5;
+const BACKOFF_BASE_MS: u64 = 500;
 
 fn main() -> std::io::Result<()> {
-    let frame_size = (WIDTH * HEIGHT * 3) as usize;
-
-    let mut args = vec!["-loglevel".into(), "error".into(), "-nostdin".into()];
-
-    args.extend(input_args(WIDTH, HEIGHT, FPS)?);
-    args.extend(output_args(PIX_FMT));
-
-    let mut child = Command::new("ffmpeg")
-        .args(&args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .spawn()?;
-
-    let mut stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "ffmpeg stdout not piped"))?;
-
-    let mut frame = vec![0u8; frame_size];
-    stdout.read_exact(&mut frame)?;
-
-    println!("got frame: {}", frame.len());
-
-    let _ = child.kill();
-    let _ = child.wait();
-
-    Ok(())
-}
-
-fn input_args(width: u32, height: u32, fps: u32) -> std::io::Result<Vec<String>> {
-    #[cfg(target_os = "macos")]
-    {
-        return Ok(vec![
-            "-f".into(),
-            "avfoundation".into(),
-            "-pixel_format".into(),
-            "nv12".into(),
-            "-framerate".into(),
-            fps.to_string(),
-            "-video_size".into(),
-            format!("{width}x{height}"),
-            "-i".into(),
-            "0:none".into(),
-        ]);
+    if maybe_list_devices_and_exit()? {
+        return Ok(());
     }
+    let config = CaptureConfig {
+        width: WIDTH,
+        height: HEIGHT,
+        fps: FPS,
+        pix_fmt: PIX_FMT,
+    };
 
-    #[cfg(target_os = "linux")]
-    {
-        return Ok(vec![
-            "-f".into(),
-            "v4l2".into(),
-            "-framerate".into(),
-            fps.to_string(),
-            "-video_size".into(),
-            format!("{width}x{height}"),
-            "-i".into(),
-            "/dev/video0".into(),
-        ]);
-    }
+    preflight_source_check(&config)?;
 
-    #[cfg(target_os = "windows")]
-    {
-        let camera_name = std::env::args()
-            .nth(1)
-            .or_else(|| std::env::var("CAMGLYPH_CAMERA").ok())
-            .ok_or_else(|| {
-                std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "Windows needs camera name: pass argv[1] or CAMGLYPH_CAMERA",
-                )
-            })?;
+    let mut consecutive_failures: u32 = 0;
+    let mut total_frames: u64 = 0;
 
-        return Ok(vec![
-            "-f".into(),
-            "dshow".into(),
-            "-framerate".into(),
-            fps.to_string(),
-            "-video_size".into(),
-            format!("{width}x{height}"),
-            "-i".into(),
-            format!("video={camera_name}"),
-        ]);
-    }
+    loop {
+        let base_index = total_frames;
+        let (session_frames, status) = run_capture_session(&config, |session_idx, frame| {
+            let global_index = base_index + session_idx;
+            if global_index % LOG_EVERY == 0 {
+                let avg = avg_luminance_rgb24(frame);
+                println!("frame={} avg_luma={:.2}", global_index, avg);
+            }
+        })?;
+        total_frames += session_frames;
 
-    #[allow(unreachable_code)]
-    {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Unsupported,
-            "Unsupported OS",
-        ));
+        eprintln!(
+            "session ended: frames={} total_frames={} status={}",
+            session_frames, total_frames, status
+        );
+
+        if session_frames == 0 {
+            consecutive_failures += 1;
+            if consecutive_failures > MAX_CONSECUTIVE_FAILURES {
+                return Err(std::io::Error::other(format!(
+                    "capture failed {} times in a row; stopping",
+                    consecutive_failures
+                )));
+            }
+        } else {
+            consecutive_failures = 0;
+        }
+
+        let exp = consecutive_failures.saturating_sub(1).min(5);
+        let backoff_ms = BACKOFF_BASE_MS.saturating_mul(1u64 << exp);
+        eprintln!(
+            "restarting ffmpeg in {} ms (consecutive failures: {})",
+            backoff_ms, consecutive_failures
+        );
+        thread::sleep(Duration::from_millis(backoff_ms));
     }
 }
 
-fn output_args(pix_fmt: &str) -> Vec<String> {
-    vec![
-        "-pix_fmt".into(),
-        pix_fmt.into(),
-        "-f".into(),
-        "rawvideo".into(),
-        "-".into(),
-    ]
+fn avg_luminance_rgb24(frame: &[u8]) -> f32 {
+    let mut sum: u64 = 0;
+    let pixels = frame.len() / 3;
+
+    for px in frame.chunks_exact(3) {
+        let r = px[0] as u32;
+        let g = px[1] as u32;
+        let b = px[2] as u32;
+        let y = (r * 77 + g * 150 + b * 29) >> 8;
+        sum += y as u64;
+    }
+
+    sum as f32 / pixels as f32
 }
