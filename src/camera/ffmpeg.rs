@@ -1,5 +1,6 @@
+use crate::camera::device;
 use std::{
-    io::{ErrorKind, Read},
+    io::{self, ErrorKind, Read},
     process::{Command, ExitStatus, Stdio},
 };
 
@@ -8,16 +9,32 @@ pub struct CaptureConfig<'a> {
     pub height: u32,
     pub fps: u32,
     pub pix_fmt: &'a str,
+    pub device: Option<String>,
 }
 
-pub fn run_capture_session<F>(config: &CaptureConfig<'_>, mut on_frame: F) -> std::io::Result<(u64, ExitStatus)>
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CaptureLoopControl {
+    Continue,
+    Stop,
+}
+
+pub struct CaptureSessionOutcome {
+    pub frames: u64,
+    pub status: ExitStatus,
+    pub stopped_by_user: bool,
+}
+
+pub fn run_capture_session<F>(
+    config: &CaptureConfig<'_>,
+    mut on_frame: F,
+) -> io::Result<CaptureSessionOutcome>
 where
-    F: FnMut(u64, &[u8]),
+    F: FnMut(u64, &[u8]) -> io::Result<CaptureLoopControl>,
 {
-    let frame_size = (config.width * config.height * 3) as usize;
+    let frame_size = frame_size(config)?;
 
     let mut args = vec!["-loglevel".into(), "error".into(), "-nostdin".into()];
-    args.extend(input_args(config.width, config.height, config.fps)?);
+    args.extend(input_args(config)?);
     args.extend(output_args(config.pix_fmt));
 
     let mut child = Command::new("ffmpeg")
@@ -29,7 +46,7 @@ where
     let mut stdout = child
         .stdout
         .take()
-        .ok_or_else(|| std::io::Error::other("ffmpeg stdout not piped"))?;
+        .ok_or_else(|| io::Error::other("ffmpeg stdout not piped"))?;
 
     let mut frame = vec![0u8; frame_size];
     let mut session_frames: u64 = 0;
@@ -37,11 +54,20 @@ where
     loop {
         match stdout.read_exact(&mut frame) {
             Ok(()) => {
-                on_frame(session_frames, &frame);
+                let control = on_frame(session_frames, &frame)?;
                 session_frames += 1;
+
+                if control == CaptureLoopControl::Stop {
+                    let _ = child.kill();
+                    let status = child.wait()?;
+                    return Ok(CaptureSessionOutcome {
+                        frames: session_frames,
+                        status,
+                        stopped_by_user: true,
+                    });
+                }
             }
             Err(e) if e.kind() == ErrorKind::UnexpectedEof => {
-                eprintln!("stream ended (EOF)");
                 break;
             }
             Err(e) => {
@@ -53,71 +79,77 @@ where
     }
 
     let status = child.wait()?;
-    Ok((session_frames, status))
+    Ok(CaptureSessionOutcome {
+        frames: session_frames,
+        status,
+        stopped_by_user: false,
+    })
 }
 
-pub fn maybe_list_devices_and_exit() -> std::io::Result<bool> {
-    if !cli_has_flag("--list-devices") {
-        return Ok(false);
-    }
+pub fn list_devices(device_hint: Option<&str>) -> io::Result<()> {
+    #[cfg(not(target_os = "linux"))]
+    let _ = device_hint;
 
     #[cfg(target_os = "macos")]
     {
         let output = Command::new("ffmpeg")
-            .args(["-hide_banner", "-f", "avfoundation", "-list_devices", "true", "-i", ""])
+            .args([
+                "-hide_banner",
+                "-f",
+                "avfoundation",
+                "-list_devices",
+                "true",
+                "-i",
+                "",
+            ])
             .output()?;
 
         let stderr = String::from_utf8_lossy(&output.stderr);
-        let mut printed = 0usize;
-        for line in stderr.lines() {
-            if line.contains("AVFoundation indev") {
-                println!("{line}");
-                printed += 1;
-            }
-        }
-
-        if printed == 0 {
-            eprintln!("No AVFoundation devices detected or ffmpeg output format changed.");
-        }
-
-        return Ok(true);
+        print_filtered_lines(&stderr, |line| line.contains("AVFoundation indev"));
+        return Ok(());
     }
 
     #[cfg(target_os = "windows")]
     {
         let output = Command::new("ffmpeg")
-            .args(["-hide_banner", "-f", "dshow", "-list_devices", "true", "-i", "dummy"])
+            .args([
+                "-hide_banner",
+                "-f",
+                "dshow",
+                "-list_devices",
+                "true",
+                "-i",
+                "dummy",
+            ])
             .output()?;
 
         let stderr = String::from_utf8_lossy(&output.stderr);
-        let mut printed = 0usize;
-        for line in stderr.lines() {
-            if line.contains("dshow") || line.contains("DirectShow") || line.trim_start().starts_with('"') {
-                println!("{line}");
-                printed += 1;
-            }
-        }
-
-        if printed == 0 {
-            eprintln!("No DirectShow devices detected or ffmpeg output format changed.");
-        }
-
-        return Ok(true);
+        print_filtered_lines(&stderr, |line| {
+            line.contains("dshow")
+                || line.contains("DirectShow")
+                || line.trim_start().starts_with('"')
+        });
+        return Ok(());
     }
 
     #[cfg(target_os = "linux")]
     {
-        let device = cli_device_arg()
-            .or_else(|| std::env::var("CAMGLYPH_DEVICE").ok())
-            .unwrap_or_else(|| "/dev/video0".to_string());
-
+        let target = device::listing_target(device_hint);
         eprintln!(
             "Listing formats for selected Linux device: {} (ffmpeg does not enumerate all v4l2 devices)",
-            device
+            target
         );
 
         let status = Command::new("ffmpeg")
-            .args(["-hide_banner", "-f", "v4l2", "-list_formats", "all", "-i", &device])
+            .args([
+                "-hide_banner",
+                "-f",
+                "v4l2",
+                "-list_formats",
+                "all",
+                "-i",
+                &target,
+            ])
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .status()?;
@@ -125,17 +157,21 @@ pub fn maybe_list_devices_and_exit() -> std::io::Result<bool> {
         if !status.success() {
             eprintln!("device listing command exited with status {}", status);
         }
-
-        return Ok(true);
+        return Ok(());
     }
 
     #[allow(unreachable_code)]
-    Ok(false)
+    Ok(())
 }
 
-pub fn preflight_source_check(config: &CaptureConfig<'_>) -> std::io::Result<()> {
-    let mut args = vec!["-hide_banner".into(), "-loglevel".into(), "error".into(), "-nostdin".into()];
-    args.extend(input_args(config.width, config.height, config.fps)?);
+pub fn preflight_source_check(config: &CaptureConfig<'_>) -> io::Result<()> {
+    let mut args = vec![
+        "-hide_banner".into(),
+        "-loglevel".into(),
+        "error".into(),
+        "-nostdin".into(),
+    ];
+    args.extend(input_args(config)?);
     args.extend([
         "-frames:v".into(),
         "1".into(),
@@ -151,7 +187,84 @@ pub fn preflight_source_check(config: &CaptureConfig<'_>) -> std::io::Result<()>
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     let message = classify_preflight_error(&stderr, config.width, config.height, config.fps);
-    Err(std::io::Error::other(message))
+    Err(io::Error::other(message))
+}
+
+fn frame_size(config: &CaptureConfig<'_>) -> io::Result<usize> {
+    if config.pix_fmt != "rgb24" {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "Unsupported pix_fmt '{}'. Current renderer expects rgb24.",
+                config.pix_fmt
+            ),
+        ));
+    }
+
+    Ok((config.width as usize)
+        .saturating_mul(config.height as usize)
+        .saturating_mul(3))
+}
+
+fn input_args(config: &CaptureConfig<'_>) -> io::Result<Vec<String>> {
+    let device_spec = device::resolve_input_spec(config.device.as_deref())?;
+
+    #[cfg(target_os = "macos")]
+    {
+        return Ok(vec![
+            "-f".into(),
+            "avfoundation".into(),
+            "-pixel_format".into(),
+            "nv12".into(),
+            "-framerate".into(),
+            config.fps.to_string(),
+            "-video_size".into(),
+            format!("{}x{}", config.width, config.height),
+            "-i".into(),
+            device_spec,
+        ]);
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        return Ok(vec![
+            "-f".into(),
+            "v4l2".into(),
+            "-framerate".into(),
+            config.fps.to_string(),
+            "-video_size".into(),
+            format!("{}x{}", config.width, config.height),
+            "-i".into(),
+            device_spec,
+        ]);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        return Ok(vec![
+            "-f".into(),
+            "dshow".into(),
+            "-framerate".into(),
+            config.fps.to_string(),
+            "-video_size".into(),
+            format!("{}x{}", config.width, config.height),
+            "-i".into(),
+            device_spec,
+        ]);
+    }
+
+    #[allow(unreachable_code)]
+    Err(io::Error::new(io::ErrorKind::Unsupported, "Unsupported OS"))
+}
+
+fn output_args(pix_fmt: &str) -> Vec<String> {
+    vec![
+        "-pix_fmt".into(),
+        pix_fmt.into(),
+        "-f".into(),
+        "rawvideo".into(),
+        "-".into(),
+    ]
 }
 
 fn classify_preflight_error(stderr: &str, width: u32, height: u32, fps: u32) -> String {
@@ -192,105 +305,19 @@ fn classify_preflight_error(stderr: &str, width: u32, height: u32, fps: u32) -> 
     format!("Camera preflight failed: {}", preview)
 }
 
-fn cli_has_flag(flag: &str) -> bool {
-    std::env::args().skip(1).any(|arg| arg == flag)
-}
-
-fn cli_device_arg() -> Option<String> {
-    let mut args = std::env::args().skip(1);
-    while let Some(arg) = args.next() {
-        if arg == "--device" {
-            return args.next();
-        }
-        if let Some(value) = arg.strip_prefix("--device=") {
-            return Some(value.to_string());
+fn print_filtered_lines<F>(stderr: &str, mut predicate: F)
+where
+    F: FnMut(&str) -> bool,
+{
+    let mut printed = 0usize;
+    for line in stderr.lines() {
+        if predicate(line) {
+            println!("{line}");
+            printed += 1;
         }
     }
-    None
-}
 
-fn input_args(width: u32, height: u32, fps: u32) -> std::io::Result<Vec<String>> {
-    #[cfg(target_os = "macos")]
-    {
-        let device = cli_device_arg()
-            .or_else(|| std::env::var("CAMGLYPH_DEVICE").ok())
-            .unwrap_or_else(|| "0:none".to_string());
-
-        return Ok(vec![
-            "-f".into(),
-            "avfoundation".into(),
-            "-pixel_format".into(),
-            "nv12".into(),
-            "-framerate".into(),
-            fps.to_string(),
-            "-video_size".into(),
-            format!("{width}x{height}"),
-            "-i".into(),
-            device,
-        ]);
+    if printed == 0 {
+        eprintln!("No camera devices were detected, or ffmpeg output format changed.");
     }
-
-    #[cfg(target_os = "linux")]
-    {
-        let device = cli_device_arg()
-            .or_else(|| std::env::var("CAMGLYPH_DEVICE").ok())
-            .unwrap_or_else(|| "/dev/video0".to_string());
-
-        return Ok(vec![
-            "-f".into(),
-            "v4l2".into(),
-            "-framerate".into(),
-            fps.to_string(),
-            "-video_size".into(),
-            format!("{width}x{height}"),
-            "-i".into(),
-            device,
-        ]);
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        let raw_device = cli_device_arg()
-            .or_else(|| std::env::var("CAMGLYPH_DEVICE").ok())
-            .or_else(|| std::env::var("CAMGLYPH_CAMERA").ok())
-            .ok_or_else(|| {
-                std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "Windows needs device: --device \"Integrated Camera\" or CAMGLYPH_DEVICE",
-                )
-            })?;
-
-        let input_device = if raw_device.starts_with("video=") {
-            raw_device
-        } else {
-            format!("video={raw_device}")
-        };
-
-        return Ok(vec![
-            "-f".into(),
-            "dshow".into(),
-            "-framerate".into(),
-            fps.to_string(),
-            "-video_size".into(),
-            format!("{width}x{height}"),
-            "-i".into(),
-            input_device,
-        ]);
-    }
-
-    #[allow(unreachable_code)]
-    Err(std::io::Error::new(
-        std::io::ErrorKind::Unsupported,
-        "Unsupported OS",
-    ))
-}
-
-fn output_args(pix_fmt: &str) -> Vec<String> {
-    vec![
-        "-pix_fmt".into(),
-        pix_fmt.into(),
-        "-f".into(),
-        "rawvideo".into(),
-        "-".into(),
-    ]
 }
