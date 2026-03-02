@@ -28,10 +28,16 @@ brew install ffmpeg rust
 2. Grant camera permission to your terminal app in:
 `System Settings -> Privacy & Security -> Camera`
 
-3. List devices:
+3. Build release binary:
 
 ```bash
-cargo run -- --list-devices
+cargo build --release
+```
+
+4. List devices:
+
+```bash
+target/release/camgylph --list-devices
 ```
 
 ### Linux
@@ -45,30 +51,48 @@ sudo apt-get install -y ffmpeg build-essential pkg-config libudev-dev
 
 2. Ensure your user can read camera device (usually `/dev/video0`).
 
-3. Optional device format listing:
+3. Build release binary:
 
 ```bash
-cargo run -- --list-devices --device /dev/video0
+cargo build --release
+```
+
+4. Optional device format listing:
+
+```bash
+target/release/camgylph --list-devices --device /dev/video0
 ```
 
 ### Windows
 
 1. Install Rust and FFmpeg (add FFmpeg `bin` to `PATH`).
-2. Use the camera name from the device list:
+2. Build release binary:
 
 ```powershell
-cargo run -- --list-devices
+cargo build --release
 ```
 
-3. Run with explicit device:
+3. Use the camera name from the device list:
 
 ```powershell
-cargo run -- --device "Integrated Camera"
+target\release\camgylph.exe --list-devices
+```
+
+4. Run with explicit device:
+
+```powershell
+target\release\camgylph.exe --device "Integrated Camera"
 ```
 
 ## Run
 
 Default run:
+
+```bash
+target/release/camgylph --device "0:none"
+```
+
+Development run (debug build):
 
 ```bash
 cargo run -- --device "0:none"
@@ -119,8 +143,8 @@ Binary path:
 
 ## Smoke-test checklist
 
-1. `cargo run -- --list-devices` prints device information.
-2. `cargo run -- --device <valid-device>` renders ASCII frames.
+1. `target/release/camgylph --list-devices` prints device information.
+2. `target/release/camgylph --device <valid-device>` renders ASCII frames.
 3. `q` exits and terminal restores cleanly.
 4. `c`, `r`, `m`, `h`, and `v` controls work during runtime.
 5. Disconnecting camera does not panic and follows restart policy.
@@ -130,3 +154,7 @@ Binary path:
 
 - Linux device enumeration via ffmpeg is format-focused for a chosen v4l2 node, not a full camera list.
 - Renderer currently expects `rgb24` output path.
+
+## License
+
+MIT. See `LICENSE`.
