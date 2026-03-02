@@ -11,7 +11,6 @@ permissions:
 jobs:
   sync-tap:
     name: Sync Homebrew Tap
-    if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source repository
@@ -26,6 +25,11 @@ jobs:
           FORMULA_PATH: Formula/camgylph.rb
         run: |
           set -euo pipefail
+          if [ -z "${TOKEN:-}" ]; then
+            echo "HOMEBREW_TAP_TOKEN is not set; skipping automatic tap sync."
+            exit 0
+          fi
+
           VERSION="${TAG#v}"
           TARBALL_URL="https://github.com/${SOURCE_REPO}/archive/refs/tags/${TAG}.tar.gz"
           SHA="$(curl -fsSL "${TARBALL_URL}" | sha256sum | awk '{print $1}')"
@@ -45,11 +49,3 @@ jobs:
           git add "${FORMULA_PATH}"
           git commit -m "camgylph ${VERSION}"
           git push origin main
-
-  missing-token:
-    name: Missing Homebrew Token
-    if: ${{ secrets.HOMEBREW_TAP_TOKEN == '' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Explain skipped sync
-        run: echo "HOMEBREW_TAP_TOKEN is not set; skipping automatic tap sync."
