@@ -44,6 +44,8 @@ fn input_args(width: u32, height: u32, fps: u32) -> std::io::Result<Vec<String>>
         return Ok(vec![
             "-f".into(),
             "avfoundation".into(),
+            "-pixel_format".into(),
+            "nv12".into(),
             "-framerate".into(),
             fps.to_string(),
             "-video_size".into(),
