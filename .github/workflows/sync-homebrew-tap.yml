@@ -1,0 +1,55 @@
+name: sync-homebrew-tap
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  sync-tap:
+    name: Sync Homebrew Tap
+    if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+
+      - name: Update tap formula
+        env:
+          TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          SOURCE_REPO: ${{ github.repository }}
+          TAP_REPO: ${{ github.repository_owner }}/homebrew-tap
+          FORMULA_PATH: Formula/camgylph.rb
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          TARBALL_URL="https://github.com/${SOURCE_REPO}/archive/refs/tags/${TAG}.tar.gz"
+          SHA="$(curl -fsSL "${TARBALL_URL}" | sha256sum | awk '{print $1}')"
+
+          git clone "https://x-access-token:${TOKEN}@github.com/${TAP_REPO}.git" tap
+          cd tap
+
+          perl -i -pe 's|^(\s*url )"[^"]+"$|$1"'"${TARBALL_URL}"'"|; s|^(\s*sha256 )"[0-9a-f]{64}"$|$1"'"${SHA}"'"|' "${FORMULA_PATH}"
+
+          if git diff --quiet -- "${FORMULA_PATH}"; then
+            echo "No formula changes needed."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${FORMULA_PATH}"
+          git commit -m "camgylph ${VERSION}"
+          git push origin main
+
+  missing-token:
+    name: Missing Homebrew Token
+    if: ${{ secrets.HOMEBREW_TAP_TOKEN == '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain skipped sync
+        run: echo "HOMEBREW_TAP_TOKEN is not set; skipping automatic tap sync."

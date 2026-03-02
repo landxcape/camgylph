@@ -2,7 +2,7 @@
 
 Real-time CLI camera renderer that converts webcam frames into colored ASCII.
 
-Current stable release: `v1.4.0`
+Current stable release: `v1.5.0`
 
 ## Install
 
@@ -151,7 +151,14 @@ target/release/camgylph --device "0:none"
 - Completed:
   - `docs/scopes/v1.3.0-interactive-tui.md`
   - `docs/scopes/v1.4.0-release-mode.md`
-- Next plan: `docs/scopes/v1.5.0-distribution-automation-plan.md`
+  - `docs/scopes/v1.5.0-distribution-automation.md`
+- Next plan: `docs/scopes/v1.6.0-bottles-plan.md`
+
+## Maintainer Release Automation
+
+- Validation workflow: `.github/workflows/release-validate.yml`
+- Tap sync workflow: `.github/workflows/sync-homebrew-tap.yml`
+- Manual fallback checklist: `docs/release-checklist.md`
 
 ## License
 
