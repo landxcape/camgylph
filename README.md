@@ -74,8 +74,10 @@ Common options:
 - `--truecolor` / `--ansi256` / `--no-color`
 - `--show-metrics` / `--hide-metrics`
 - `--gamma <value>` / `--contrast <value>`
-- `--render-fps <n>`
+- `--render-fps <n>` (`0` = follow camera FPS)
 - `--log-metrics-ms <n>`
+- `--max-cols <n>` / `--max-rows <n>`
+- `--fast` (performance preset)
 - `--max-failures <n>` / `--backoff-ms <n>`
 - `--cell-aspect <ratio>`
 

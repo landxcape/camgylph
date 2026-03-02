@@ -33,6 +33,7 @@ impl TerminalRenderer {
         status_line: &str,
     ) -> io::Result<()> {
         let rows = build_rows(frame, color_mode);
+        let (term_w, _) = terminal::size()?;
 
         if self.prev_width != frame.width || self.prev_height != frame.height {
             write!(self.stdout, "\x1b[2J")?;
@@ -53,7 +54,8 @@ impl TerminalRenderer {
         }
 
         let status_row = frame.height as usize + 1;
-        write!(self.stdout, "\x1b[{};1H{}\x1b[K", status_row, status_line)?;
+        let clamped = clamp_to_columns(status_line, term_w as usize);
+        write!(self.stdout, "\x1b[{};1H{}\x1b[K", status_row, clamped)?;
         self.stdout.flush()
     }
 
@@ -94,4 +96,12 @@ fn build_row(cells: &[AsciiCell], color_mode: ColorMode) -> String {
 
     out.push_str("\x1b[0m");
     out
+}
+
+fn clamp_to_columns(text: &str, max_cols: usize) -> String {
+    if max_cols == 0 {
+        return String::new();
+    }
+
+    text.chars().take(max_cols).collect()
 }

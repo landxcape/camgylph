@@ -1,7 +1,7 @@
 use crate::camera::device;
 use std::{
     io::{self, ErrorKind, Read},
-    process::{Command, ExitStatus, Stdio},
+    process::{Command, Stdio},
 };
 
 pub struct CaptureConfig<'a> {
@@ -20,7 +20,6 @@ pub enum CaptureLoopControl {
 
 pub struct CaptureSessionOutcome {
     pub frames: u64,
-    pub status: ExitStatus,
     pub stopped_by_user: bool,
 }
 
@@ -35,7 +34,7 @@ where
 
     let mut args = vec!["-loglevel".into(), "error".into(), "-nostdin".into()];
     args.extend(input_args(config)?);
-    args.extend(output_args(config.pix_fmt));
+    args.extend(output_args(config.pix_fmt, config.fps));
 
     let mut child = Command::new("ffmpeg")
         .args(&args)
@@ -60,9 +59,9 @@ where
                 if control == CaptureLoopControl::Stop {
                     let _ = child.kill();
                     let status = child.wait()?;
+                    let _ = status;
                     return Ok(CaptureSessionOutcome {
                         frames: session_frames,
-                        status,
                         stopped_by_user: true,
                     });
                 }
@@ -79,9 +78,9 @@ where
     }
 
     let status = child.wait()?;
+    let _ = status;
     Ok(CaptureSessionOutcome {
         frames: session_frames,
-        status,
         stopped_by_user: false,
     })
 }
@@ -257,8 +256,12 @@ fn input_args(config: &CaptureConfig<'_>) -> io::Result<Vec<String>> {
     Err(io::Error::new(io::ErrorKind::Unsupported, "Unsupported OS"))
 }
 
-fn output_args(pix_fmt: &str) -> Vec<String> {
+fn output_args(pix_fmt: &str, fps: u32) -> Vec<String> {
     vec![
+        "-vf".into(),
+        format!("fps={fps}"),
+        "-r".into(),
+        fps.to_string(),
         "-pix_fmt".into(),
         pix_fmt.into(),
         "-f".into(),

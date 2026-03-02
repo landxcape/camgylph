@@ -14,6 +14,8 @@ pub struct Config {
     pub contrast: f32,
     pub render_fps: u32,
     pub log_metrics_ms: u64,
+    pub max_cols: u16,
+    pub max_rows: u16,
     pub max_consecutive_failures: u32,
     pub backoff_base_ms: u64,
     pub cell_aspect_ratio: f32,
@@ -36,6 +38,8 @@ impl Default for Config {
             contrast: 1.0,
             render_fps: 0,
             log_metrics_ms: 0,
+            max_cols: 0,
+            max_rows: 0,
             max_consecutive_failures: 5,
             backoff_base_ms: 500,
             cell_aspect_ratio: 0.5,
@@ -63,6 +67,7 @@ impl Config {
                 "--ramp" => cfg.ramp_name = next_value(&mut args, "--ramp")?,
                 "--show-metrics" => cfg.show_metrics = true,
                 "--hide-metrics" => cfg.show_metrics = false,
+                "--fast" => apply_fast_preset(&mut cfg),
                 "--gamma" => cfg.gamma = parse_f32(next_value(&mut args, "--gamma")?, "--gamma")?,
                 "--contrast" => {
                     cfg.contrast = parse_f32(next_value(&mut args, "--contrast")?, "--contrast")?
@@ -76,6 +81,12 @@ impl Config {
                         next_value(&mut args, "--log-metrics-ms")?,
                         "--log-metrics-ms",
                     )?
+                }
+                "--max-cols" => {
+                    cfg.max_cols = parse_u16(next_value(&mut args, "--max-cols")?, "--max-cols")?
+                }
+                "--max-rows" => {
+                    cfg.max_rows = parse_u16(next_value(&mut args, "--max-rows")?, "--max-rows")?
                 }
                 "--max-failures" => {
                     cfg.max_consecutive_failures =
@@ -113,6 +124,10 @@ impl Config {
                         cfg.render_fps = parse_u32(value.to_string(), "--render-fps")?;
                     } else if let Some(value) = arg.strip_prefix("--log-metrics-ms=") {
                         cfg.log_metrics_ms = parse_u64(value.to_string(), "--log-metrics-ms")?;
+                    } else if let Some(value) = arg.strip_prefix("--max-cols=") {
+                        cfg.max_cols = parse_u16(value.to_string(), "--max-cols")?;
+                    } else if let Some(value) = arg.strip_prefix("--max-rows=") {
+                        cfg.max_rows = parse_u16(value.to_string(), "--max-rows")?;
                     } else if let Some(value) = arg.strip_prefix("--max-failures=") {
                         cfg.max_consecutive_failures =
                             parse_u32(value.to_string(), "--max-failures")?;
@@ -180,10 +195,13 @@ pub fn print_help() {
   --truecolor              Use ANSI truecolor mode (default)\n\
   --show-metrics           Show metrics/status line\n\
   --hide-metrics           Hide metrics/status line\n\
+  --fast                   Performance preset (ansi256, 20 FPS, no metrics, 120x40 render cap)\n\
   --gamma <value>          Gamma adjustment (default: 1.0)\n\
   --contrast <value>       Contrast multiplier (default: 1.0)\n\
-  --render-fps <n>         Max render FPS cap; 0 = uncapped (default: 0)\n\
+  --render-fps <n>         Max render FPS cap; 0 = follow camera FPS (default: 0)\n\
   --log-metrics-ms <n>     Periodic metrics logging to stderr (default: 0)\n\
+  --max-cols <n>           Render width cap in terminal cells (default: 0 = terminal width)\n\
+  --max-rows <n>           Render height cap in terminal cells (default: 0 = terminal height)\n\
   --max-failures <n>       Restart failure threshold (default: 5)\n\
   --backoff-ms <n>         Restart backoff base in ms (default: 500)\n\
   --cell-aspect <ratio>    Character cell aspect ratio (default: 0.5)\n\
@@ -213,7 +231,21 @@ fn parse_u64(raw: String, flag: &str) -> Result<u64, AppError> {
         .map_err(|_| AppError::Config(format!("Invalid value for {flag}: {raw}")))
 }
 
+fn parse_u16(raw: String, flag: &str) -> Result<u16, AppError> {
+    raw.parse::<u16>()
+        .map_err(|_| AppError::Config(format!("Invalid value for {flag}: {raw}")))
+}
+
 fn parse_f32(raw: String, flag: &str) -> Result<f32, AppError> {
     raw.parse::<f32>()
         .map_err(|_| AppError::Config(format!("Invalid value for {flag}: {raw}")))
+}
+
+fn apply_fast_preset(cfg: &mut Config) {
+    cfg.color_mode = ColorMode::Ansi256;
+    cfg.ramp_name = "standard".to_string();
+    cfg.show_metrics = false;
+    cfg.render_fps = 20;
+    cfg.max_cols = 120;
+    cfg.max_rows = 40;
 }

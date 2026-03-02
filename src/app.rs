@@ -77,6 +77,11 @@ pub fn run(config: Config) -> Result<(), AppError> {
     let mut total_frames = 0u64;
     let mut last_render_at: Option<Instant> = None;
     let mut last_metrics_log = Instant::now();
+    let effective_render_fps = if config.render_fps == 0 {
+        capture_config.fps
+    } else {
+        config.render_fps
+    };
 
     loop {
         let base_index = total_frames;
@@ -89,8 +94,8 @@ pub fn run(config: Config) -> Result<(), AppError> {
                 return Ok(CaptureLoopControl::Stop);
             }
 
-            if config.render_fps > 0 {
-                pace_frame(config.render_fps, &mut last_render_at);
+            if !should_render_now(effective_render_fps, &mut last_render_at) {
+                return Ok(CaptureLoopControl::Continue);
             }
 
             let started_at = metrics.begin_frame();
@@ -98,7 +103,13 @@ pub fn run(config: Config) -> Result<(), AppError> {
             let frame = RgbFrameView::new(capture_config.width, capture_config.height, frame_bytes)
                 .ok_or_else(|| io::Error::other("Received unexpected frame byte length"))?;
 
-            let (term_w, term_h) = renderer.current_size()?;
+            let (mut term_w, mut term_h) = renderer.current_size()?;
+            if config.max_cols > 0 {
+                term_w = term_w.min(config.max_cols);
+            }
+            if config.max_rows > 0 {
+                term_h = term_h.min(config.max_rows);
+            }
             let (out_w, out_h) = fit_dimensions(
                 frame.width,
                 frame.height,
@@ -127,10 +138,6 @@ pub fn run(config: Config) -> Result<(), AppError> {
 
         if state.quit || outcome.stopped_by_user {
             break;
-        }
-
-        if !outcome.status.success() {
-            eprintln!("capture session exit status: {}", outcome.status);
         }
 
         if outcome.frames == 0 {
@@ -195,19 +202,22 @@ fn build_status_line(state: &RuntimeState, metrics: &Metrics, frame_idx: u64) ->
     )
 }
 
-fn pace_frame(render_fps: u32, last_render_at: &mut Option<Instant>) {
+fn should_render_now(render_fps: u32, last_render_at: &mut Option<Instant>) -> bool {
     if render_fps == 0 {
-        return;
+        return true;
     }
 
+    let now = Instant::now();
     let target = Duration::from_secs_f64(1.0 / render_fps as f64);
+
     if let Some(last) = last_render_at {
-        let elapsed = last.elapsed();
-        if elapsed < target {
-            thread::sleep(target - elapsed);
+        if now.duration_since(*last) < target {
+            return false;
         }
     }
-    *last_render_at = Some(Instant::now());
+
+    *last_render_at = Some(now);
+    true
 }
 
 fn maybe_log_metrics(interval_ms: u64, metrics: &Metrics, last_logged: &mut Instant) {
