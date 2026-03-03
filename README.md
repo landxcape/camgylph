@@ -2,7 +2,7 @@
 
 Real-time CLI camera renderer that converts webcam frames into colored ASCII.
 
-Current stable release: `v1.5.2`
+Current stable release: `v1.5.3`
 
 ## Install
 
@@ -29,6 +29,8 @@ camgylph --device "0:none"
 
 On macOS, grant camera permission to your terminal app in:
 `System Settings -> Privacy & Security -> Camera`.
+
+For a user-only guide, see [`docs/USAGE.md`](docs/USAGE.md).
 
 ## Typical Commands
 
