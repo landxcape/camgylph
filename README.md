@@ -2,7 +2,7 @@
 
 Real-time CLI camera renderer that converts webcam frames into colored ASCII.
 
-Current stable release: `v1.5.3`
+Current stable release: `v1.5.4`
 
 ## Install
 
@@ -35,6 +35,7 @@ For a user-only guide, see [`docs/USAGE.md`](docs/USAGE.md).
 ## Typical Commands
 
 ```bash
+camgylph --version
 camgylph --list-devices
 camgylph --device "0:none"
 camgylph --device /dev/video0
@@ -66,6 +67,7 @@ camgylph --device "Integrated Camera"
 - `--fast` (performance preset)
 - `--release-mode` (production preset: ansi256, 60 FPS cap, no metrics, full terminal)
 - `--max-failures <n>` / `--backoff-ms <n>`
+- `-V` / `--version`
 
 ## Rendering Behavior
 

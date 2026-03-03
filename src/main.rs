@@ -19,6 +19,10 @@ fn main() {
 
 fn run() -> Result<(), AppError> {
     let config = Config::from_env()?;
+    if config.show_version {
+        config::print_version();
+        return Ok(());
+    }
     if config.show_help {
         config::print_help();
         return Ok(());

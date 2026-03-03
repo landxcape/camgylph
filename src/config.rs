@@ -19,6 +19,7 @@ pub struct Config {
     pub max_consecutive_failures: u32,
     pub backoff_base_ms: u64,
     pub release_mode: bool,
+    pub show_version: bool,
     pub show_help: bool,
 }
 
@@ -43,6 +44,7 @@ impl Default for Config {
             max_consecutive_failures: 5,
             backoff_base_ms: 500,
             release_mode: false,
+            show_version: false,
             show_help: false,
         }
     }
@@ -66,6 +68,7 @@ impl Config {
         while let Some(arg) = args.next() {
             match arg.as_str() {
                 "-h" | "--help" => cfg.show_help = true,
+                "-V" | "--version" => cfg.show_version = true,
                 "--list-devices" => cfg.list_devices = true,
                 "--device" => cfg.device = Some(next_value(&mut args, "--device")?),
                 "--width" => cfg.width = parse_u32(next_value(&mut args, "--width")?, "--width")?,
@@ -248,6 +251,7 @@ pub fn print_help() {
   --max-rows <n>           Render height cap in terminal cells (default: 0 = terminal height)\n\
   --max-failures <n>       Restart failure threshold (default: 5)\n\
   --backoff-ms <n>         Restart backoff base in ms (default: 500)\n\
+  -V, --version            Show version\n\
   -h, --help               Show this help\n\
 \nCONTROLS (while running):\n\
   q / Esc                  Quit\n\
@@ -259,6 +263,10 @@ pub fn print_help() {
   + / -                    Increase / decrease gamma\n\
   ] / [                    Increase / decrease contrast"
     );
+}
+
+pub fn print_version() {
+    println!("camgylph {}", env!("CARGO_PKG_VERSION"));
 }
 
 fn next_value(args: &mut impl Iterator<Item = String>, flag: &str) -> Result<String, AppError> {
@@ -391,5 +399,11 @@ mod tests {
         assert_eq!(cfg.render_fps, 48);
         assert_eq!(cfg.max_cols, 100);
         assert_eq!(cfg.max_rows, 30);
+    }
+
+    #[test]
+    fn parses_version_flag() {
+        let cfg = parse(&["--version"]);
+        assert!(cfg.show_version);
     }
 }

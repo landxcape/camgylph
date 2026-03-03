@@ -45,6 +45,7 @@ On macOS, allow camera access for your terminal app in:
 - `--truecolor` / `--ansi256` / `--no-color`
 - `--ramp standard|detailed`
 - `--release-mode`
+- `-V` / `--version`
 
 ## Common Issues
 
