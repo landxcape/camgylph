@@ -18,7 +18,7 @@ jobs:
 
       - name: Update tap formula
         env:
-          TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TOKEN: ${{ secrets.TAP_SYNC_TOKEN }}
           TAG: ${{ github.ref_name }}
           SOURCE_REPO: ${{ github.repository }}
           TAP_REPO: ${{ github.repository_owner }}/homebrew-tap
@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${TOKEN:-}" ]; then
-            echo "HOMEBREW_TAP_TOKEN is not set; skipping automatic tap sync."
+            echo "Required tap-sync secret is not set; skipping automatic tap sync."
             exit 0
           fi
 

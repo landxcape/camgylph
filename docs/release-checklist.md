@@ -10,10 +10,7 @@ Use this checklist when automation is unavailable or a workflow fails.
 
 ## One-Time Automation Setup
 
-Set repo secret in `landxcape/camgylph`:
-
-- Name: `HOMEBREW_TAP_TOKEN`
-- Value: GitHub token with `repo` access to `landxcape/homebrew-tap`
+Configure the required repository secret for tap sync in the source repository settings.
 
 Without this secret, tag automation still validates the release, but Homebrew tap sync is skipped.
 
