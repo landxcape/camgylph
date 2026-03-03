@@ -145,21 +145,6 @@ target/release/camgylph --device "0:none"
 - Linux device enumeration via ffmpeg is format-focused for a chosen v4l2 node, not a full camera list.
 - Renderer currently expects `rgb24` output path.
 
-## Scope Tracking
-
-- `docs/SCOPES.md`
-- Completed:
-  - `docs/scopes/v1.3.0-interactive-tui.md`
-  - `docs/scopes/v1.4.0-release-mode.md`
-  - `docs/scopes/v1.5.0-distribution-automation.md`
-- Next plan: `docs/scopes/v1.6.0-bottles-plan.md`
-
-## Maintainer Release Automation
-
-- Validation workflow: `.github/workflows/release-validate.yml`
-- Tap sync workflow: `.github/workflows/sync-homebrew-tap.yml`
-- Manual fallback checklist: `docs/release-checklist.md`
-
 ## License
 
 MIT. See `LICENSE`.
