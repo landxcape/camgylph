@@ -2,16 +2,35 @@
 
 Real-time CLI camera renderer that converts webcam frames into colored ASCII.
 
-Current stable release: `v1.5.4`
+Current stable release: `v1.5.6`
 
-## Install
+## Installation
 
-### Homebrew (recommended)
+### Option 1: Homebrew (macOS & Linux - Recommended)
 
 ```bash
 brew tap landxcape/tap
 brew install landxcape/tap/camgylph
 ```
+
+To update `camgylph` later:
+```bash
+brew update && brew upgrade camgylph
+```
+
+### Option 2: Pre-Compiled Standalone Binaries (macOS, Linux, Windows)
+
+Download the latest pre-compiled archive for your architecture from [GitHub Releases](https://github.com/landxcape/camgylph/releases):
+
+| Platform | Architecture | Archive |
+| :--- | :--- | :--- |
+| **macOS** | Apple Silicon (`arm64`) | `camgylph-macos-aarch64.tar.gz` |
+| **macOS** | Intel (`x86_64`) | `camgylph-macos-x86_64.tar.gz` |
+| **Linux** | `x86_64` | `camgylph-linux-x86_64.tar.gz` |
+| **Windows** | `x86_64` | `camgylph-windows-x86_64.zip` |
+
+Extract and place the binary (`camgylph` or `camgylph.exe`) in your `PATH`.
+*Note: `ffmpeg` must be installed and accessible in your system `PATH`.*
 
 ## Quick Start
 
