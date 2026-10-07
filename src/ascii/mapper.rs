@@ -24,6 +24,7 @@ impl AsciiFrame {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn map_rgb_frame(
     frame: &RgbFrameView<'_>,
     out_width: u16,

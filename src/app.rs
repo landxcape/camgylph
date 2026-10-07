@@ -220,10 +220,10 @@ fn should_render_now(render_fps: u32, last_render_at: &mut Option<Instant>) -> b
     let now = Instant::now();
     let target = Duration::from_secs_f64(1.0 / render_fps as f64);
 
-    if let Some(last) = last_render_at {
-        if now.duration_since(*last) < target {
-            return false;
-        }
+    if let Some(last) = last_render_at
+        && now.duration_since(*last) < target
+    {
+        return false;
     }
 
     *last_render_at = Some(now);
