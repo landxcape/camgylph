@@ -4,9 +4,9 @@ Real-time CLI camera renderer that converts webcam frames into colored ASCII.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-blue)]()
-[![Interactive Sandbox](https://img.shields.io/badge/demo-interactive%20sandbox-0284C7.svg)](https://shakyapurna.com.np/#/lab/camgylph/sandbox)
+[![Interactive Sandbox](https://img.shields.io/badge/demo-interactive%20sandbox-0284C7.svg)](https://shakyapurna.com.np/lab/camgylph/sandbox)
 
-An [interactive sandbox](https://shakyapurna.com.np/#/lab/camgylph/sandbox) is available to preview terminal ASCII glyph rendering in the browser.
+An [interactive sandbox](https://shakyapurna.com.np/lab/camgylph/sandbox) is available to preview terminal ASCII glyph rendering in the browser.
 
 Current stable release: `v1.5.6`
 
